@@ -1,39 +1,37 @@
-# bot.py
 import os
-import asyncio
 from flask import Flask, request
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-# ======== Config ========
-TOKEN = os.environ.get("BOT_TOKEN")  # Set in Render environment variables
-WEBHOOK_PATH = "/webhook"  # Must match the webhook URL path
-PORT = int(os.environ.get("PORT", 5000))  # Render provides this automatically
+# === Telegram Bot Token ===
+TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")  # set in Render Environment Variables
 
-# ======== Flask app ========
+# === Webhook Path ===
+WEBHOOK_PATH = "/webhook"
+
+# === Initialize Flask app ===
 app = Flask(__name__)
 
-# ======== Telegram bot (webhook-only) ========
+# === Initialize Telegram bot application ===
 application = ApplicationBuilder().token(TOKEN).build()
 
-# Example command handler
+# === Example command handler ===
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("✅ Bot is running on Render!")
+    await update.message.reply_text("✅ Hello! Bot is running via webhook on Render.")
 
 application.add_handler(CommandHandler("start", start))
 
-# ======== Webhook route ========
+# === Flask route for Telegram webhook ===
 @app.route(WEBHOOK_PATH, methods=["POST"])
 def webhook():
+    """Receive updates from Telegram and push them to the bot."""
     update = Update.de_json(request.get_json(force=True), application.bot)
-    asyncio.run(application.process_update(update))
-    return "ok"
+    application.update_queue.put(update)
+    return "OK"
 
-# ======== Health check route ========
-@app.route("/", methods=["GET"])
-def index():
-    return "Bot is alive!"
-
-# ======== Local testing ========
+# === Main entry point ===
 if __name__ == "__main__":
+    # Render sets the port via environment variable
+    PORT = int(os.environ.get("PORT", 5000))
+    # Bind to all interfaces
     app.run(host="0.0.0.0", port=PORT)
