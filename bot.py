@@ -1,25 +1,28 @@
-from telegram import Bot, Update
-from telegram.ext import Dispatcher, CommandHandler, CallbackContext
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 from flask import Flask, request
 
-# Your bot token from @BotFather
 TOKEN = "YOUR_BOT_TOKEN"
-bot = Bot(token=TOKEN)
+WEBHOOK_PATH = "/webhook"
+
 app = Flask(__name__)
-dispatcher = Dispatcher(bot, None, workers=0)
 
-# Command handler
-def start(update: Update, context: CallbackContext):
-    update.message.reply_text("Hello! Bot is running on Render.")
+# Create the Telegram application
+application = ApplicationBuilder().token(TOKEN).build()
 
-dispatcher.add_handler(CommandHandler("start", start))
+# Define your command
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Hello! Bot is running on Render.")
 
-# Webhook route
-@app.route("/webhook", methods=["POST"])
+# Add command handler
+application.add_handler(CommandHandler("start", start))
+
+# Flask route to handle Telegram webhook
+@app.route(WEBHOOK_PATH, methods=["POST"])
 def webhook():
-    dispatcher.process_update(Update.de_json(request.get_json(force=True), bot))
+    """Process incoming webhook from Telegram."""
+    update = Update.de_json(request.get_json(force=True), application.bot)
+    # Process update asynchronously
+    import asyncio
+    asyncio.run(application.process_update(update))
     return "ok"
-
-# Optional local test
-if __name__ == "__main__":
-    app.run(port=5000)
